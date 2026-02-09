@@ -1,7 +1,10 @@
 ## Unreleased
 
-- Added `ScopedProvider` with `Bind.value`, `Bind.create`, and `Bind.notifier`
+- Added `ScopedProvider` with `Provide.value`, `Provide.create`, and `Provide.notifier`
   to simplify declaring multiple dependencies in a single place.
+- Added automatic constructor resolution for `Provide.create` and
+  `Provide.notifier`, allowing usage such as `Provide.create<Foo>(Foo.new)`
+  while keeping compatibility with legacy `ScopedReader` callbacks.
 
 ## 6.1.5+1 - 2025-08-19
 

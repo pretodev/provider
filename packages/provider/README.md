@@ -286,17 +286,15 @@ the appearance of the code.
 ### ScopedProvider
 
 `ScopedProvider` is a convenience on top of `MultiProvider` that groups common
-provider patterns using `Bind`:
+provider patterns using `Provide`:
 
 ```dart
 ScopedProvider(
-  binds: [
-    Bind.value(BaseUrl('https://api.com'), lazy: false),
-    Bind.create<ApiInterface>(
-      (i) => ApiImplementation(baseUrl: i.get<BaseUrl>()),
-    ),
-    Bind.notifier(
-      (i) => ViewModel(api: i()),
+  provides: [
+    Provide.value(BaseUrl('https://api.com'), lazy: false),
+    Provide.create<ApiInterface>(ApiImplementation.new),
+    Provide.notifier<ViewModel>(
+      ViewModel.new,
       key: 'user_notifier',
     ),
   ],

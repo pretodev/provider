@@ -14,12 +14,10 @@ void main() {
           textDirection: TextDirection.ltr,
           child: ScopedProvider(
             provides: [
-              Provide.value(const BaseUrl('https://api.com'), lazy: false),
-              Provide.create<ApiInterface>(
-                (i) => ApiImplementation(baseUrl: i.get<BaseUrl>()),
-              ),
+              Provide.value(const BaseUrl('https://api.com')),
+              Provide.create<ApiInterface>(ApiImplementation.new),
               Provide.notifier<UserNotifier>(
-                (i) => UserNotifier(api: i()),
+                UserNotifier.new,
                 key: 'user_notifier',
               ),
             ],
@@ -52,7 +50,7 @@ void main() {
 
       await tester.pumpWidget(
         ScopedProvider(
-          provides: [Provide.value(42, key: 'answer')],
+          provides: [Provide.value(42, key: 'answer', lazy: true)],
           child: Container(key: childKey),
         ),
       );
@@ -79,7 +77,9 @@ void main() {
           textDirection: TextDirection.ltr,
           child: ScopedProvider(
             provides: [
-              Provide.create<String>((i) => i.get<int>().toString()),
+              Provide.create<String>(
+                (ScopedReader i) => i.get<int>().toString(),
+              ),
               Provide.value(42),
             ],
             child: TextOf<String>(),
@@ -89,6 +89,139 @@ void main() {
 
       expect(tester.takeException(), isA<ProviderNotFoundException>());
     });
+
+    testWidgets(
+      'Provide.create resolves required positional dependencies with .new',
+      (tester) async {
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: ScopedProvider(
+              provides: [
+                Provide.value(const BaseUrl('https://api.com')),
+                Provide.create<ApiInterface>(PositionalApiImplementation.new),
+              ],
+              child: Builder(
+                builder: (context) {
+                  final api = context.read<ApiInterface>();
+                  return Text(api.baseUrl, textDirection: TextDirection.ltr);
+                },
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('https://api.com'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Provide.notifier resolves no-arg constructors with .new', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: ScopedProvider(
+            provides: [Provide.notifier<SimpleNotifier>(SimpleNotifier.new)],
+            child: Builder(
+              builder: (context) {
+                final counter = context.watch<SimpleNotifier>().counter;
+                return Text('$counter', textDirection: TextDirection.ltr);
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('0'), findsOneWidget);
+
+      final notifier = tester.element(find.text('0')).read<SimpleNotifier>();
+      notifier.increment();
+      await tester.pump();
+
+      expect(find.text('1'), findsOneWidget);
+    });
+
+    testWidgets('Provide.create keeps ScopedReader callback compatibility', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: ScopedProvider(
+            provides: [
+              Provide.value(const BaseUrl('https://api.com')),
+              Provide.create<ApiInterface>(_legacyReaderApiFactory),
+            ],
+            child: Builder(
+              builder: (context) {
+                final api = context.read<ApiInterface>();
+                return Text(api.baseUrl, textDirection: TextDirection.ltr);
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('https://api.com'), findsOneWidget);
+    });
+
+    testWidgets('Provide.create supports legacy dynamic reader callbacks', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: ScopedProvider(
+            provides: [
+              Provide.value(const BaseUrl('https://api.com')),
+              Provide.create<ApiInterface>(_legacyDynamicApiFactory),
+            ],
+            child: Builder(
+              builder: (context) {
+                final api = context.read<ApiInterface>();
+                return Text(api.baseUrl, textDirection: TextDirection.ltr);
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('https://api.com'), findsOneWidget);
+    });
+
+    testWidgets(
+      'Provide.create throws with dependency trace on resolution failure',
+      (tester) async {
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: ScopedProvider(
+              provides: [
+                Provide.create<MissingDependencyChild>(
+                  MissingDependencyChild.new,
+                ),
+                Provide.create<MissingDependencyRoot>(
+                  MissingDependencyRoot.new,
+                ),
+              ],
+              child: TextOf<MissingDependencyRoot>(),
+            ),
+          ),
+        );
+
+        final exception = tester.takeException();
+        expect(exception, isNotNull);
+        final message = exception.toString();
+        expect(message, contains('MissingDependencyLeaf not registered.'));
+        expect(
+          message,
+          contains(
+            'Trace: MissingDependencyRoot->MissingDependencyChild->MissingDependencyLeaf',
+          ),
+        );
+      },
+    );
 
     testWidgets('Bind.notifier disposes created notifier on unmount', (
       tester,
@@ -134,11 +267,29 @@ class ApiImplementation implements ApiInterface {
   String get baseUrl => _baseUrl;
 }
 
+class PositionalApiImplementation implements ApiInterface {
+  PositionalApiImplementation(BaseUrl baseUrl) : _baseUrl = baseUrl.value;
+
+  final String _baseUrl;
+
+  @override
+  String get baseUrl => _baseUrl;
+}
+
 class UserNotifier extends ChangeNotifier {
   UserNotifier({required this.api});
 
   final ApiInterface api;
 
+  int counter = 0;
+
+  void increment() {
+    counter++;
+    notifyListeners();
+  }
+}
+
+class SimpleNotifier extends ChangeNotifier {
   int counter = 0;
 
   void increment() {
@@ -156,3 +307,25 @@ class DisposableNotifier extends ChangeNotifier {
     super.dispose();
   }
 }
+
+ApiInterface _legacyReaderApiFactory(ScopedReader reader) {
+  return ApiImplementation(baseUrl: reader());
+}
+
+ApiInterface _legacyDynamicApiFactory(dynamic reader) {
+  return ApiImplementation(baseUrl: (reader as ScopedReader).get<BaseUrl>());
+}
+
+class MissingDependencyRoot {
+  MissingDependencyRoot({required this.child});
+
+  final MissingDependencyChild child;
+}
+
+class MissingDependencyChild {
+  MissingDependencyChild({required this.leaf});
+
+  final MissingDependencyLeaf leaf;
+}
+
+class MissingDependencyLeaf {}

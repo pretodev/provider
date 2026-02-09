@@ -9,9 +9,7 @@ void main() {
     /// Providers are above [MyApp] instead of inside it, so that tests
     /// can use [MyApp] while mocking the providers
     ScopedProvider(
-      provides: [
-        Provide.notifier((_) => Counter()),
-      ],
+      provides: [Provide.notifier<Counter>(Counter.new)],
       child: const MyApp(),
     ),
   );
@@ -42,9 +40,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: MyHomePage(),
-    );
+    return const MaterialApp(home: MyHomePage());
   }
 }
 
@@ -54,9 +50,7 @@ class MyHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Example'),
-      ),
+      appBar: AppBar(title: const Text('Example')),
       body: const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

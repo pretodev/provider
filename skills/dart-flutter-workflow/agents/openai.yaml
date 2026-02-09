@@ -1,4 +1,0 @@
-interface:
-  display_name: 'Dart Flutter Workflow'
-  short_description: 'Dart/Flutter execution and validation standard'
-  default_prompt: 'Use $dart-flutter-workflow to implement changes in Dart/Flutter projects with FVM, analyzer, format, and before/after tests.'
