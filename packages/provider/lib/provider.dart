@@ -60,6 +60,7 @@ export 'src/proxy_provider.dart'
         ProxyProviderBuilder5,
         ProxyProviderBuilder6;
 export 'src/reassemble_handler.dart' show ReassembleHandler;
+export 'src/scoped_provider.dart' show Provide, ScopedProvider, ScopedReader;
 export 'src/selector.dart'
     show
         Selector,

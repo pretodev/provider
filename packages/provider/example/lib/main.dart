@@ -8,9 +8,9 @@ void main() {
   runApp(
     /// Providers are above [MyApp] instead of inside it, so that tests
     /// can use [MyApp] while mocking the providers
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => Counter()),
+    ScopedProvider(
+      provides: [
+        Provide.notifier((_) => Counter()),
       ],
       child: const MyApp(),
     ),

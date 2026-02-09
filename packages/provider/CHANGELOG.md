@@ -1,3 +1,8 @@
+## Unreleased
+
+- Added `ScopedProvider` with `Bind.value`, `Bind.create`, and `Bind.notifier`
+  to simplify declaring multiple dependencies in a single place.
+
 ## 6.1.5+1 - 2025-08-19
 
 Updated Discord link.

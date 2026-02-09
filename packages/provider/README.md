@@ -283,6 +283,33 @@ MultiProvider(
 The behavior of both examples is strictly the same. `MultiProvider` only changes
 the appearance of the code.
 
+### ScopedProvider
+
+`ScopedProvider` is a convenience on top of `MultiProvider` that groups common
+provider patterns using `Bind`:
+
+```dart
+ScopedProvider(
+  binds: [
+    Bind.value(BaseUrl('https://api.com'), lazy: false),
+    Bind.create<ApiInterface>(
+      (i) => ApiImplementation(baseUrl: i.get<BaseUrl>()),
+    ),
+    Bind.notifier(
+      (i) => ViewModel(api: i()),
+      key: 'user_notifier',
+    ),
+  ],
+  child: MyApp(),
+)
+```
+
+Dependencies are still consumed with the same APIs:
+
+- `context.read<T>()`
+- `context.watch<T>()`
+- `context.select<T, R>((value) => ...)`
+
 ### ProxyProvider
 
 Since the 3.0.0, there is a new kind of provider: `ProxyProvider`.
