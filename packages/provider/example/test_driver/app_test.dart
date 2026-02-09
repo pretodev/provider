@@ -2,13 +2,13 @@ import 'package:flutter_driver/flutter_driver.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('counter app', () {
+  group('master/details app', () {
     FlutterDriver? _driver;
 
-    final incrementFloatingButton =
-        find.byValueKey('increment_floatingActionButton');
-    final appBarText = find.text('Example');
-    final counterState = find.byValueKey('counterState');
+    final appBarText = find.text('ScopedProvider Master/Details');
+    final detailTitle = find.byValueKey('detail_title');
+    final toggleFavoriteButton = find.byValueKey('toggle_favorite_button');
+    final favoriteState = find.byValueKey('detail_favorite_state');
 
     /// connect to [FlutterDriver]
     setUpAll(() async {
@@ -20,22 +20,24 @@ void main() {
       await _driver?.close();
     });
 
-    test('AppBar is Flutter Demo Home Page', () async {
-      expect(await _driver!.getText(appBarText), 'Example');
+    test('AppBar renders expected title', () async {
+      expect(
+        await _driver!.getText(appBarText),
+        'ScopedProvider Master/Details',
+      );
     });
 
-    test('counterText is started with 0', () async {
-      expect(await _driver!.getText(counterState), '0');
+    test('first details item is selected by default', () async {
+      expect(
+        await _driver!.getText(detailTitle),
+        'Build ScopedProvider sample',
+      );
+      expect(await _driver!.getText(favoriteState), 'Favorite: No');
     });
 
-    test('pressed increment floating action button twice', () async {
-      // tap floating action button
-      await _driver!.tap(incrementFloatingButton);
-      expect(await _driver!.getText(counterState), '1');
-
-      // tap floating action button
-      await _driver!.tap(incrementFloatingButton);
-      expect(await _driver!.getText(counterState), '2');
+    test('toggle favorite updates details state', () async {
+      await _driver!.tap(toggleFavoriteButton);
+      expect(await _driver!.getText(favoriteState), 'Favorite: Yes');
     });
   });
 }

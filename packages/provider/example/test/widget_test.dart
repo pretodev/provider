@@ -1,45 +1,58 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility that Flutter provides. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:example/main.dart' as example;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+Future<void> _pumpExample(WidgetTester tester) async {
+  await tester.pumpWidget(example.buildScopedProviderMasterDetailsApp());
+  await tester.pumpAndSettle();
+}
+
+String _textByKey(WidgetTester tester, String key) {
+  final text = tester.widget<Text>(find.byKey(Key(key)));
+  return text.data ?? '';
+}
+
 void main() {
-  testWidgets('Counter increments smoke test', (tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('loads master/details and toggles favorite', (tester) async {
+    await _pumpExample(tester);
 
-    example.main();
+    expect(find.text('ScopedProvider Master/Details'), findsOneWidget);
+    expect(find.byKey(const Key('master_item-01')), findsOneWidget);
+    expect(find.byKey(const Key('detail_title')), findsOneWidget);
+    expect(_textByKey(tester, 'detail_title'), 'Build ScopedProvider sample');
+    expect(_textByKey(tester, 'detail_favorite_state'), 'Favorite: No');
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.tap(find.byKey(const Key('toggle_favorite_button')));
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(_textByKey(tester, 'detail_favorite_state'), 'Favorite: Yes');
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('master_item-01')),
+        matching: find.byIcon(Icons.star),
+      ),
+      findsOneWidget,
+    );
   });
-  test('Counter toString()', () {
-    final counter = example.Counter();
 
-    expect(counter.toString(), '${describeIdentity(counter)}(count: 0)');
+  testWidgets('selects a different master item and shows details', (
+    tester,
+  ) async {
+    await _pumpExample(tester);
 
-    counter.increment();
+    await tester.tap(find.byKey(const Key('master_item-03')));
+    await tester.pumpAndSettle();
 
-    expect(counter.toString(), '${describeIdentity(counter)}(count: 1)');
+    expect(_textByKey(tester, 'detail_title'), 'Investigate flaky tests');
+    expect(
+      _textByKey(tester, 'detail_description'),
+      contains('intermittent logs'),
+    );
+    expect(_textByKey(tester, 'detail_status'), 'Status: Investigating');
   });
+
   test('test coverage', () {
-    // remove when https://github.com/dart-lang/sdk/issues/38934 is closed
-    const example.Count();
-    const example.MyHomePage();
+    const example.ScopedProviderMasterDetailsApp();
+    const example.WorkItemsPage();
   });
 }
