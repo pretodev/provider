@@ -48,9 +48,7 @@ abstract final class Provide {
   static const _inheritedProviderScopePrefix = '_InheritedProviderScope<';
 
   /// Exposes an existing [value].
-  ///
-  /// Unlike [Provider.value], this supports `lazy`.
-  static SingleChildWidget value<T>(T value, {Object? key, bool lazy = false}) {
+  static SingleChildWidget value<T>(T value, {Object? key}) {
     assert(() {
       Provider.debugCheckInvalidValueType?.call<T>(value);
       return true;
@@ -58,7 +56,6 @@ abstract final class Provide {
     return InheritedProvider<T>.value(
       key: _toKey(key),
       value: value,
-      lazy: lazy,
     );
   }
 

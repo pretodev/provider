@@ -291,7 +291,7 @@ provider patterns using `Provide`:
 ```dart
 ScopedProvider(
   provides: [
-    Provide.value(BaseUrl('https://api.com'), lazy: false),
+    Provide.value(BaseUrl('https://api.com')),
     Provide.create<ApiInterface>(ApiImplementation.new),
     Provide.notifier<ViewModel>(
       ViewModel.new,

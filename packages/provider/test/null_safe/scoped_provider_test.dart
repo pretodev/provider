@@ -50,7 +50,7 @@ void main() {
 
       await tester.pumpWidget(
         ScopedProvider(
-          provides: [Provide.value(42, key: 'answer', lazy: true)],
+          provides: [Provide.value(42, key: 'answer')],
           child: Container(key: childKey),
         ),
       );
