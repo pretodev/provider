@@ -1,0 +1,7 @@
+name: provider_workspace
+publish_to: none
+environment:
+  sdk: ^3.10.0
+workspace:
+  - packages/provider
+  - packages/provider_devtools_extension

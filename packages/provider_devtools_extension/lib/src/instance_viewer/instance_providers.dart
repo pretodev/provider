@@ -52,7 +52,6 @@ Future<InstanceRef> _resolveInstanceRefForPath(
   return parent.maybeMap(
     // TODO: support sets
     // TODO: iterables should use iterators / next() for iterable to navigate, to avoid recomputing the content
-
     map: (parent) {
       final keyPath = path.pathToProperty.last as MapKeyPath;
       final key = keyPath.ref == null ? 'null' : 'key';
@@ -119,9 +118,7 @@ Future<void> _mutate(
       return eval.safeEval(
         'parent[${indexPath.index}] = $newValueExpression',
         isAlive: isAlive,
-        scope: {
-          'parent': parent.instanceRefId,
-        },
+        scope: {'parent': parent.instanceRefId},
       );
     },
     map: (parent) async {
@@ -152,9 +149,7 @@ Future<void> _mutate(
       return field.eval.safeEval(
         '(parent as ${propertyPath.ownerName}).${propertyPath.name} = $newValueExpression',
         isAlive: isAlive,
-        scope: {
-          'parent': parent.instanceRefId,
-        },
+        scope: {'parent': parent.instanceRefId},
       );
     },
     orElse: () => throw StateError('Can only mutate lists/maps/objects'),
@@ -187,7 +182,9 @@ Future<EnumInstance?> _tryParseEnum(
   required Setter? setter,
 }) async {
   if (instance.kind != InstanceKind.kPlainInstance ||
-      instance.fields?.length != 2) return null;
+      instance.fields?.length != 2) {
+    return null;
+  }
 
   InstanceRef? findPropertyWithName(String name) {
     return instance.fields
@@ -265,130 +262,137 @@ Setter? _parseSetter({
 ///
 /// The UI should not be used directly. Instead, use [instanceProvider].
 final AutoDisposeFutureProviderFamily<InstanceDetails, InstancePath>
-    instanceProvider =
-    AutoDisposeFutureProviderFamily<InstanceDetails, InstancePath>(
-  (ref, path) async {
-    ref.watch(hotRestartEventProvider);
-
-    final eval = await ref.watch(evalProvider.future);
-
-    final isAlive = Disposable();
-    ref.onDispose(isAlive.dispose);
-
-    final parent = await _resolveParent(ref, path);
-
-    final instanceRef = await _resolveInstanceRefForPath(
+instanceProvider =
+    AutoDisposeFutureProviderFamily<InstanceDetails, InstancePath>((
+      ref,
       path,
-      ref: ref,
-      parent: parent,
-      isAlive: isAlive,
-    );
+    ) async {
+      ref.watch(hotRestartEventProvider);
 
-    final setter = _parseSetter(
-      path: path,
-      isAlive: isAlive,
-      ref: ref,
-      parent: parent,
-    );
+      final eval = await ref.watch(evalProvider.future);
 
-    final instance = await eval.safeGetInstance(instanceRef, isAlive);
+      final isAlive = Disposable();
+      ref.onDispose(isAlive.dispose);
 
-    switch (instance.kind) {
-      case InstanceKind.kNull:
-        return InstanceDetails.nill(setter: setter);
-      case InstanceKind.kBool:
-        return InstanceDetails.boolean(
-          instance.valueAsString!,
-          instanceRefId: instanceRef.id!,
-          setter: setter,
-        );
-      case InstanceKind.kInt:
-      case InstanceKind.kDouble:
-        return InstanceDetails.number(
-          instance.valueAsString!,
-          instanceRefId: instanceRef.id!,
-          setter: setter,
-        );
-      case InstanceKind.kString:
-        return InstanceDetails.string(
-          instance.valueAsString!,
-          instanceRefId: instanceRef.id!,
-          setter: setter,
-        );
+      final parent = await _resolveParent(ref, path);
 
-      case InstanceKind.kMap:
+      final instanceRef = await _resolveInstanceRefForPath(
+        path,
+        ref: ref,
+        parent: parent,
+        isAlive: isAlive,
+      );
 
-        // voluntarily throw if a key failed to load
-        final keysRef = instance.associations!.map((e) => e.key as InstanceRef);
+      final setter = _parseSetter(
+        path: path,
+        isAlive: isAlive,
+        ref: ref,
+        parent: parent,
+      );
 
-        final keysFuture = Future.wait<InstanceDetails>([
-          for (final keyRef in keysRef)
-            ref.watch(
-              instanceProvider(InstancePath.fromInstanceId(keyRef.id!)).future,
-            ),
-        ]);
+      final instance = await eval.safeGetInstance(instanceRef, isAlive);
 
-        return InstanceDetails.map(
-          await keysFuture,
-          hash: await eval.getHashCode(instance, isAlive: isAlive),
-          instanceRefId: instanceRef.id!,
-          setter: setter,
-        );
+      switch (instance.kind) {
+        case InstanceKind.kNull:
+          return InstanceDetails.nill(setter: setter);
+        case InstanceKind.kBool:
+          return InstanceDetails.boolean(
+            instance.valueAsString!,
+            instanceRefId: instanceRef.id!,
+            setter: setter,
+          );
+        case InstanceKind.kInt:
+        case InstanceKind.kDouble:
+          return InstanceDetails.number(
+            instance.valueAsString!,
+            instanceRefId: instanceRef.id!,
+            setter: setter,
+          );
+        case InstanceKind.kString:
+          return InstanceDetails.string(
+            instance.valueAsString!,
+            instanceRefId: instanceRef.id!,
+            setter: setter,
+          );
 
-      // TODO(rrousselGit): support sets
-      // TODO(rrousselGit): support custom lists
-      // TODO(rrousselGit): support Type
-      case InstanceKind.kList:
-        return InstanceDetails.list(
-          length: instance.length!,
-          hash: await eval.getHashCode(instance, isAlive: isAlive),
-          instanceRefId: instanceRef.id!,
-          setter: setter,
-        );
+        case InstanceKind.kMap:
 
-      case InstanceKind.kPlainInstance:
-      default:
-        final enumDetails = await _tryParseEnum(
-          instance,
-          eval: eval,
-          isAlive: isAlive,
-          instanceRefId: instanceRef.id!,
-          setter: setter,
-        );
+          // voluntarily throw if a key failed to load
+          final keysRef = instance.associations!.map(
+            (e) => e.key as InstanceRef,
+          );
 
-        if (enumDetails != null) return enumDetails;
+          final keysFuture = Future.wait<InstanceDetails>([
+            for (final keyRef in keysRef)
+              ref.watch(
+                instanceProvider(
+                  InstancePath.fromInstanceId(keyRef.id!),
+                ).future,
+              ),
+          ]);
 
-        final classInstance =
-            await eval.safeGetClass(instance.classRef!, isAlive);
-        final evalForInstance =
-            // TODO(rrousselGit) when can `library` be null?
-            ref.watch(libraryEvalProvider(classInstance.library!.uri!).future);
+          return InstanceDetails.map(
+            await keysFuture,
+            hash: await eval.getHashCode(instance, isAlive: isAlive),
+            instanceRefId: instanceRef.id!,
+            setter: setter,
+          );
 
-        final appName = tryParsePackageName(eval.isolate!.rootLib!.uri!);
+        // TODO(rrousselGit): support sets
+        // TODO(rrousselGit): support custom lists
+        // TODO(rrousselGit): support Type
+        case InstanceKind.kList:
+          return InstanceDetails.list(
+            length: instance.length!,
+            hash: await eval.getHashCode(instance, isAlive: isAlive),
+            instanceRefId: instanceRef.id!,
+            setter: setter,
+          );
 
-        final fields = await _parseFields(
-          ref,
-          eval,
-          instance,
-          isAlive: isAlive,
-          appName: appName,
-        );
+        case InstanceKind.kPlainInstance:
+        default:
+          final enumDetails = await _tryParseEnum(
+            instance,
+            eval: eval,
+            isAlive: isAlive,
+            instanceRefId: instanceRef.id!,
+            setter: setter,
+          );
 
-        return InstanceDetails.object(
-          fields.sorted((a, b) => sortFieldsByName(a.name, b.name)),
-          hash: await eval.getHashCode(instance, isAlive: isAlive),
-          type: classInstance.name!,
-          instanceRefId: instanceRef.id!,
-          evalForInstance: await evalForInstance,
-          setter: setter,
-        );
-    }
-  },
-);
+          if (enumDetails != null) return enumDetails;
 
-final _packageNameExp = RegExp(
-  r'package:(.+?)/',
-);
+          final classInstance = await eval.safeGetClass(
+            instance.classRef!,
+            isAlive,
+          );
+          final evalForInstance =
+              // TODO(rrousselGit) when can `library` be null?
+              ref.watch(
+                libraryEvalProvider(classInstance.library!.uri!).future,
+              );
+
+          final appName = tryParsePackageName(eval.isolate!.rootLib!.uri!);
+
+          final fields = await _parseFields(
+            ref,
+            eval,
+            instance,
+            isAlive: isAlive,
+            appName: appName,
+          );
+
+          return InstanceDetails.object(
+            fields.sorted((a, b) => sortFieldsByName(a.name, b.name)),
+            hash: await eval.getHashCode(instance, isAlive: isAlive),
+            type: classInstance.name!,
+            instanceRefId: instanceRef.id!,
+            evalForInstance: await evalForInstance,
+            setter: setter,
+          );
+      }
+    });
+
+final _packageNameExp = RegExp(r'package:(.+?)/');
 
 String? tryParsePackageName(String uri) {
   return _packageNameExp.firstMatch(uri)?.group(1);
@@ -403,8 +407,10 @@ Future<List<ObjectField>> _parseFields(
 }) {
   final fields = instance.fields!.map((field) async {
     final fieldDeclaration = field.decl!;
-    final owner =
-        await eval.safeGetClass(fieldDeclaration.owner! as ClassRef, isAlive);
+    final owner = await eval.safeGetClass(
+      fieldDeclaration.owner! as ClassRef,
+      isAlive,
+    );
 
     final ownerUri = fieldDeclaration.location!.script!.uri!;
     final ownerName = owner.mixin?.name ?? owner.name!;
@@ -424,8 +430,10 @@ Future<List<ObjectField>> _parseFields(
   return Future.wait(fields);
 }
 
-final _providerChanged =
-    AutoDisposeStreamProviderFamily<void, String>((ref, id) async* {
+final _providerChanged = AutoDisposeStreamProviderFamily<void, String>((
+  ref,
+  id,
+) async* {
   final service = await ref.watch(serviceProvider.future);
 
   yield* service.onExtensionEvent.where((event) {
